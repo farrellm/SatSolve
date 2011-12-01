@@ -2,6 +2,7 @@ open Real;;
 open VectorSpace;;
 
 module RealVector = VectorSpace.Vector (Real) ;;
+module RealMatrix = VectorSpace.Matrix (Real) ;;
 
 print_endline "SatSolver";;
 
@@ -25,6 +26,37 @@ let dot = RealVector.multiply v1 v2;;
 RealVector.print_scalar dot;;
 print_newline () ;;
 
-let m1=[[
+let m1 = [[1.;3.];[2.;5.]];;
+RealMatrix.print_matrix m1;;
+print_newline () ;;
+
+print_newline () ;;
+(*
+let mt = RealMatrix.times 3. m1;;
+RealMatrix.print_matrix mt ;;
+print_newline () ;;
+*)
+
+let row = RealMatrix.row [1.;0.];;
+let col = RealMatrix.col [1.;0.];;
+
+(*
+match RealMatrix.transpose col with
+  | a,b -> RealMatrix.print_matrix a ; print_newline () ; 
+      RealMatrix.print_vector b ; print_newline () ;;
+*)
+RealMatrix.print_matrix (RealMatrix.transpose m1) ;;
+print_newline () ;;
+print_newline () ;;
+
+RealMatrix.print_matrix (RealMatrix.multiply m1 m1) ;;
+print_newline () ;;
+print_newline () ;;
+
+RealMatrix.print_matrix row;;
+print_newline () ;;
+
+RealMatrix.print_matrix col;;
+print_newline () ;;
 
 print_newline () ;;
