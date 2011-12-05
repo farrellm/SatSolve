@@ -4,6 +4,7 @@ module type FIELD =
     val plus: field -> field -> field
     val negative: field -> field
     val zero: field
+    val is_zero: field -> bool
 
     val multiply: field -> field -> field
     val inverse: field -> field
