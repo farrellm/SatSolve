@@ -82,7 +82,6 @@ module VectorSpace =
           exception Empty_column
 
           let l_divide m v =
-           let init_aug = List.rev_map2 (fun a b -> a,b) m v in
            let rec eliminate aug res i di =
              let rec next_row a b = match a with
                | [] -> raise Empty_column
@@ -102,13 +101,9 @@ module VectorSpace =
                  let next = List.map clear rest in
                    eliminate next ((irow,ib)::res) (i+di) di
                with Empty_column -> eliminate aug res (i+di) di in
-           let partial = eliminate init_aug [] 0 1 in
+           let partial = eliminate (List.combine m v) [] 0 1 in
            let full = eliminate partial [] ((List.length partial) - 1) (-1) in
-           let u = List.fold_left
-             (fun p a -> (snd a)::p)
-             ([]) (List.rev full) in
-             u
-
+           snd (List.split full)
         end
           
   end
