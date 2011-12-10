@@ -11,33 +11,20 @@ module VectorSpace =
           exception Size_mismatch
                  
           let print_scalar e = Field.print e
-          let print_vector v =
-            let rec print_help v = match v with
-              | [] -> print_string "]"
-              | e::[] -> print_scalar e ; print_help []
-              | e::tl -> print_scalar e ; print_string " " ; print_help tl in
-            print_string "[" ; print_help v
+          let print_vector = function
+            | [] -> print_string "[]"
+            | hd::tl ->
+                print_string "[" ; print_scalar hd ;
+                List.iter (function e -> print_string " " ; print_scalar e) tl ;
+                print_string "]"
           
-          let plus v1 v2 =
-            let rec plus_help u1 u2 sum = match (u1,u2) with
-              | ([], []) -> sum
-              | (_, []) | ([], _) -> raise Size_mismatch
-              | (h1::t1, h2::t2) -> plus_help t1 t2 ((Field.plus h1 h2)::sum) in
-            List.rev (plus_help v1 v2 [])
+          let plus v1 v2 = List.map2 Field.plus v1 v2
 
-          let times s v =
-            let rec times_help u prod = match u with
-              | [] -> prod
-              | hd::tl -> times_help tl ((Field.multiply s hd)::prod) in
-            List.rev (times_help v [])
+          let times s v = List.map (function e -> Field.multiply s e) v
 
           let multiply v1 v2 =
-            let rec mult_help u1 u2 sum = match (u1,u2) with
-              | ([], []) -> sum
-              | (_, []) | ([], _) -> raise Size_mismatch
-              | (h1::t1, h2::t2) ->
-                  mult_help t1 t2 (Field.plus (Field.multiply h1 h2) sum) in
-            mult_help v1 v2 Field.zero
+            List.fold_left2 (fun s a b -> Field.plus s (Field.multiply a b))
+              Field.zero v1 v2
         end
 
     module Matrix =
@@ -45,19 +32,19 @@ module VectorSpace =
         struct
           type element = Field.field
           module FieldVector = Vector(Field)
-          type matrix = {array : FieldVector.vector list; row_major : bool}
+          type matrix = FieldVector.vector list
 
           exception Dim_mismatch
 
           let print_scalar = FieldVector.print_scalar
           let print_vector = FieldVector.print_vector
-          let print_matrix m =
-            let rec print_help n = match n with
-              | [] -> print_string "]"
-              | v::[] -> print_vector v ; print_help []
-              | v::tl -> print_vector v ;
-                  print_newline () ; print_string " " ; print_help tl in
-            print_string "[" ; print_help m
+          let print_matrix = function
+            | [] -> print_string "[[]]"
+            | hd::tl ->
+                print_string "[" ; print_vector hd ;
+                List.iter (function e -> print_newline () ; print_string " " ;
+                             print_vector e ) tl ;
+                print_string "]"
 
           let eye n =
             let rec row_loop r =
@@ -68,44 +55,45 @@ module VectorSpace =
                     e :: (col_loop (c+1)) in
                 (col_loop 0) :: (row_loop (r+1)) in
             row_loop 0
- 
+              
+          (*
+          type eye_rec = {before: matrix; after: matrix}
+          let ey n =
+            let rec init u = if (List.length u) == n then u else init ([]::u) in
+            let push_zero v = Field.zero::v
+            and push_one v = Field.one::v
+            and base = init [] in
+            (List.fold_left
+               (fun p e-> match p.after with
+                  | [] -> raise Dim_mismatch
+                  | hd::tl -> {
+                      before=(push_one hd)::(List.map push_zero p.before);
+                      after=(List.map push_zero tl)})
+               {before=[];after=base} base).before
+          *)
+              
           let row v = [v]
-          let col v =
-            let rec col_help u res = match u with
-              | [] -> res
-              | hd::tl -> col_help tl ([hd]::res) in
-            List.rev (col_help v [])
+          let col v = List.map (function e -> [e]) v
                 
           let transpose m =
-            let rec next_vector s e v = match s with
-              | [] -> (List.rev e), (List.rev v)
-              | u::r -> match u with
-                  | [] -> ([],[])
-                  | hd::tl -> next_vector r (tl::e) (hd::v) in
-            let rec trans_loop n r = match (next_vector n [] []) with
-              | [],[] -> List.rev r
-              | p,v -> trans_loop p (v::r) in
-            trans_loop m []
+            let chop n = List.fold_right
+              (fun v p -> match v with
+                 | [] -> [],[]
+                 | hd::tl -> (hd::(fst p)),(tl::(snd p))) n ([],[]) in
+            let rec trans_loop n =
+              match chop n with
+                | [],[] -> []
+                | _,[] | [],_ -> raise Dim_mismatch
+                | v,r -> v::(trans_loop r) in
+            trans_loop m
 
-          let times s m =
-            let rec times_help u prod = match u with
-              | [] -> prod
-              | hd::tl -> times_help tl ((FieldVector.times s hd)::prod) in
-            List.rev (times_help m [])
+          let times s m = List.map (function v -> FieldVector.times s v) m
 
           let multiply m1 m2 =
             let t2 = transpose m2 in
-            let rec out_loop n1 res = match n1 with
-              | [] -> List.rev res
-              | row::row_tl ->
-                  let rec in_loop s1 v = match s1 with
-                    | [] -> List.rev v
-                    | col::col_tl ->
-                        let prod = FieldVector.multiply row col in
-                        in_loop col_tl (prod::v) in
-                  let vec = in_loop t2 [] in
-                  out_loop row_tl (vec::res) in
-            out_loop m1 []
+            List.map
+              (function v1 -> List.map
+                 (function v2 -> FieldVector.multiply v1 v2) t2) m1
 
           exception Zero_vector
 
@@ -137,6 +125,38 @@ module VectorSpace =
                   div_help f g (i_hd_n::res_n) (i_hd_u::res_u) in
             let m_2,v_2 = div_help m v [] [] in
             div_help m_2 v_2 [] []
+            (*m_2,v_2*)
+
+          exception Empty_column
+
+          let divide m v =
+           let init_aug = List.rev_map2 (fun a b -> a,b) m v in
+           let rec eliminate aug res i di =
+             let rec next_row a b = match a with
+               | [] -> raise Empty_column
+               | hd::tl -> match List.nth (fst hd) i with
+                   | e when Field.is_zero e -> next_row tl (hd::b)
+                   | _ -> hd,tl@b in
+             if aug == [] then res else
+               try
+                 let (row,b),rest = next_row aug [] in
+                 let inv = Field.inverse (List.nth row i) in
+                 let irow = FieldVector.times inv row
+                 and ib = FieldVector.times inv b in
+                 let clear = function r,c ->
+                   let mult = Field.negative (List.nth r i) in
+                   (FieldVector.plus r (FieldVector.times mult irow)),
+                   (FieldVector.plus c (FieldVector.times mult ib)) in
+                 let next = List.map clear rest in
+                   eliminate next ((irow,ib)::res) (i+di) di
+               with Empty_column -> eliminate aug res (i+di) di in
+           let partial = eliminate init_aug [] 0 1 in
+           let full = eliminate partial [] ((List.length partial) - 1) (-1) in
+           let n,u = List.fold_left
+             (fun p a->((fst a)::(fst p)),((snd a)::(snd p)))
+             ([],[]) (List.rev full) in
+             n,u
+
         end
           
   end
